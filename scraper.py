@@ -43,13 +43,49 @@ UK_SPONSOR_CACHE  = BASE_DIR / "uk_sponsors.json"
 US_H1B_CACHE      = BASE_DIR / "us_h1b_sponsors.json"
 CACHE_TTL_HOURS   = 48
 
-SEARCH_QUERIES = ["AI Engineer", "GTM Systems Engineer", "GTM Engineer", "Growth Engineer AI"]
+SEARCH_QUERIES = [
+    "AI Engineer",
+    "GTM Systems Engineer",
+    "GTM Engineer",
+    "Revenue Operations Engineer",
+    "Revenue Engineer",
+    "GTM AI Engineer",
+    "Sales Engineering AI",
+    "Marketing Engineer AI",
+    "Growth Engineer AI",
+]
 
-# Seniority filter — exclude junior/intern/entry-level, keep manager+ (min mid-level)
+# Seniority filter — exclude junior/intern/entry-level
 JUNIOR_EXCLUDE_KEYWORDS = [
     "junior", "jr.", "jr ", "intern", "internship", "entry level", "entry-level",
     "graduate scheme", "graduate programme", "trainee", "apprentice",
     "assistant engineer", "associate engineer",
+]
+
+# Role relevance filter — exclude titles that are clearly off-target
+ROLE_EXCLUDE_KEYWORDS = [
+    # Data / analytics (not engineering)
+    "data analyst", "data analytics", "business analyst", "business intelligence",
+    "bi analyst", "reporting analyst", "analytics manager",
+    "data scientist", "machine learning scientist", "research scientist",
+    "data steward", "data governance",
+    # Pure infra / cloud ops
+    "devops", "devsecops", "site reliability", "sre ", "platform engineer",
+    "cloud engineer", "infrastructure engineer", "network engineer",
+    "database administrator", "dba ", "database engineer",
+    # Security
+    "security engineer", "cybersecurity", "penetration tester", "appsec",
+    # Hardware / embedded
+    "hardware engineer", "embedded engineer", "firmware engineer",
+    "electrical engineer", "mechanical engineer",
+    # Mobile
+    "ios engineer", "android engineer", "mobile engineer",
+    # Completely unrelated
+    "qa engineer", "quality assurance", "test engineer", "automation tester",
+    "technical writer", "technical writer",
+    "recruiter", "talent acquisition",
+    "customer success", "account executive", "account manager",
+    "financial analyst", "finance manager",
 ]
 
 # Consulting / managed-service / staffing / over-enterprise companies to exclude.
@@ -546,6 +582,8 @@ def is_valid_job(title: str, company: str, url: str = "") -> bool:
         return False
     t = title.lower()
     if any(kw in t for kw in JUNIOR_EXCLUDE_KEYWORDS):
+        return False
+    if any(kw in t for kw in ROLE_EXCLUDE_KEYWORDS):
         return False
     if url:
         url_lower = url.lower()
