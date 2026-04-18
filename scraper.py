@@ -450,6 +450,41 @@ def sponsorship_verdict(
     return False
 
 
+# ── Funded SaaS detection ─────────────────────────────────────────────────────
+
+_FUNDING_KEYWORDS = [
+    # Round mentions
+    "series a", "series b", "series c", "series d", "series e",
+    "seed funding", "seed round", "seed stage",
+    "pre-seed", "pre-series",
+    "venture backed", "venture-backed", "vc backed", "vc-backed",
+    "recently funded", "newly funded",
+    # Raise amounts
+    r"\$\d+[mb] funding", r"raised \$\d+", r"raised £\d+",
+    r"funding round", r"closed \$", r"secured \$",
+    # Investor signals
+    "backed by", "investors include", "portfolio company",
+    "y combinator", "yc ", " yc,", "techstars", "a16z", "andreessen",
+    "sequoia", "accel", "benchmark", "lightspeed", "tiger global",
+    "softbank", "greylock", "index ventures", "balderton",
+    # Growth signals
+    "hypergrowth", "hyper-growth", "fast-growing", "fast growing",
+    "high-growth", "high growth", "scaling rapidly", "rapid growth",
+    "rocket ship", "rocketship",
+    # SaaS/product signals
+    "saas", "software as a service", "b2b saas", "our platform",
+    "our product", "product-led", "product led growth",
+]
+
+_FUNDING_RE = [re.compile(p, re.IGNORECASE) for p in _FUNDING_KEYWORDS]
+
+
+def detect_funded_saas(text: str, company_description: str = "") -> bool:
+    """Return True if job text signals a funded / high-growth SaaS company."""
+    combined = (text + " " + company_description).lower()
+    return any(pat.search(combined) for pat in _FUNDING_RE)
+
+
 def load_seen() -> set:
     if SEEN_FILE.exists():
         return set(json.loads(SEEN_FILE.read_text()))
@@ -579,6 +614,7 @@ def scrape_adzuna(query: str, country: str, location: str,
                 "url":         item.get("redirect_url", ""),
                 "description": desc[:500],
                 "source":      "adzuna",
+                "funded_saas": detect_funded_saas(desc),
                 "found_at":    now_iso(),
             })
 
@@ -688,6 +724,7 @@ def scrape_reed(query: str, location: str, uk_register: set, us_h1b: set) -> lis
             "url":         item.get("jobUrl", ""),
             "description": desc[:500],
             "source":      "reed",
+            "funded_saas": detect_funded_saas(desc),
             "found_at":    now_iso(),
         })
 
@@ -772,6 +809,7 @@ def scrape_linkedin(query: str, location: str, market: str,
             "url":         job_url,
             "description": desc[:500],
             "source":      "linkedin",
+            "funded_saas": detect_funded_saas(desc),
             "found_at":    now_iso(),
         })
         time.sleep(0.5)  # be polite between detail fetches
@@ -829,6 +867,7 @@ def scrape_totaljobs(query: str, uk_register: set, us_h1b: set) -> list:
             "url":         job_url,
             "description": desc[:500],
             "source":      "totaljobs",
+            "funded_saas": detect_funded_saas(desc),
             "found_at":    now_iso(),
         })
 
@@ -883,6 +922,7 @@ def scrape_cwjobs(query: str, uk_register: set, us_h1b: set) -> list:
             "url":         job_url,
             "description": desc[:500],
             "source":      "cwjobs",
+            "funded_saas": detect_funded_saas(desc),
             "found_at":    now_iso(),
         })
 
@@ -946,6 +986,7 @@ def scrape_greenhouse(query: str, market: str,
                 "url":         item.get("absolute_url", ""),
                 "description": desc[:500],
                 "source":      "greenhouse",
+                "funded_saas": detect_funded_saas(desc),
                 "found_at":    now_iso(),
             })
 
