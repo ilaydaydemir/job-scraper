@@ -926,9 +926,7 @@ def scrape_greenhouse(query: str, market: str,
                 kw in loc_lower for kw in ["united states", " us", "new york", "san francisco", "remote", ""]
             ):
                 continue
-            if market == "uk" and not any(
-                kw in loc_lower for kw in ["london", "remote", "anywhere"]
-            ):
+            if market == "uk" and "london" not in loc_lower:
                 continue
 
             desc    = BeautifulSoup(item.get("content", ""), "html.parser").get_text()
@@ -1030,9 +1028,6 @@ def run_scrape():
         raw += scrape_cwjobs(query, uk_register, us_h1b)
         raw += scrape_greenhouse(query, "uk", uk_register, us_h1b)
         raw += scrape_linkedin(query, "London, United Kingdom", "uk", uk_register, us_h1b)
-
-        # Remote
-        raw += scrape_remotive(query, uk_register, us_h1b)
 
         time.sleep(2)
 
