@@ -45,6 +45,23 @@ CACHE_TTL_HOURS   = 48
 
 SEARCH_QUERIES = ["AI Engineer", "GTM Systems Engineer", "GTM Engineer", "Growth Engineer AI"]
 
+# Seniority filter — exclude junior/intern/entry-level, keep manager+ (min mid-level)
+JUNIOR_EXCLUDE_KEYWORDS = [
+    "junior", "jr.", "jr ", "intern", "internship", "entry level", "entry-level",
+    "graduate scheme", "graduate programme", "trainee", "apprentice",
+    "assistant engineer", "associate engineer",
+]
+
+# Job aggregator/spam domains to exclude — keep only direct company sites + LinkedIn
+SPAM_JOB_DOMAINS = {
+    "jobrapido", "jobisjob", "jobisjobus", "trovit", "mitula", "neuvoo",
+    "careerjet", "jora", "jobleads", "adzuna",   # adzuna results come via API, not URL
+    "jobsora", "jobomas", "jobsearchengine", "cleverism", "ziprecruiter",
+    "snagajob", "simplyhired", "talent.com", "betterteam", "jobspider",
+    "postjobfree", "jobsxl", "jobtome", "jobvertise", "workopolis",
+    "jobdiagnosis", "jobhat", "getwork", "jobisite",
+}
+
 US_SPONSORSHIP_KEYWORDS = [
     "visa sponsorship", "will sponsor", "h1b", "h-1b", "work authorization",
     "sponsorship available", "we sponsor", "sponsorship provided",
@@ -376,6 +393,27 @@ def _is_sponsored(verdict) -> bool:
     return verdict in (True, "register-only", "text-only")
 
 
+def is_valid_job(title: str, company: str, url: str = "") -> bool:
+    """
+    Returns False if:
+    - title is empty or looks like a company name placeholder
+    - title contains junior/intern/entry-level keywords
+    - URL points to a spam aggregator (not company site or LinkedIn)
+    """
+    if not title or len(title.strip()) < 4:
+        return False
+    if title.strip().lower() == company.strip().lower():
+        return False
+    t = title.lower()
+    if any(kw in t for kw in JUNIOR_EXCLUDE_KEYWORDS):
+        return False
+    if url:
+        url_lower = url.lower()
+        if any(spam in url_lower for spam in SPAM_JOB_DOMAINS):
+            return False
+    return True
+
+
 # ── Source: Adzuna ─────────────────────────────────────────────────────────────
 
 def scrape_adzuna(query: str, country: str, location: str,
@@ -417,7 +455,7 @@ def scrape_adzuna(query: str, country: str, location: str,
             verdict = sponsorship_verdict(
                 f"{title} {desc}", company, market, uk_register, us_h1b
             )
-            if not _is_sponsored(verdict):
+            if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
                 continue
 
             currency = "£" if country == "gb" else "$"
@@ -526,7 +564,7 @@ def scrape_reed(query: str, location: str, uk_register: set, us_h1b: set) -> lis
         verdict = sponsorship_verdict(
             f"{title} {desc}", company, "uk", uk_register, us_h1b
         )
-        if not _is_sponsored(verdict):
+        if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
             continue
 
         mn, mx = item.get("minimumSalary"), item.get("maximumSalary")
@@ -613,7 +651,7 @@ def scrape_linkedin(query: str, location: str, market: str,
             f"{title} {desc}", company, market, uk_register, us_h1b
         )
 
-        if not _is_sponsored(verdict):
+        if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
             continue
 
         jobs.append({
@@ -631,6 +669,116 @@ def scrape_linkedin(query: str, location: str, market: str,
         time.sleep(0.5)  # be polite between detail fetches
 
     log.info(f"LinkedIn '{query}' {location} → {len(jobs)} verified sponsored jobs")
+    return jobs
+
+
+# ── Source: Totaljobs ────────────────────────────────────────────────────────
+
+# Totaljobs uses brotli encoding — exclude it from Accept-Encoding
+_HEADERS_NO_BR = {**HEADERS, "Accept-Encoding": "gzip, deflate"}
+
+def scrape_totaljobs(query: str, uk_register: set, us_h1b: set) -> list:
+    jobs = []
+    url = (
+        f"https://www.totaljobs.com/jobs/{requests.utils.quote(query.lower().replace(' ', '-'))}"
+        f"/in-london?radius=15&postedWithin=14"
+    )
+    try:
+        r = requests.get(url, headers=_HEADERS_NO_BR, timeout=20)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+    except Exception as e:
+        log.error(f"Totaljobs '{query}': {e}")
+        return []
+
+    for card in soup.find_all("article", {"data-testid": "job-item"}):
+        title_el   = card.find("a", {"data-testid": "job-item-title"})
+        company_el = card.find("span", {"data-testid": "job-item-hiring-company-name"})
+        loc_el     = card.find("span", {"data-testid": "job-item-location"})
+        salary_el  = card.find("span", {"data-testid": "job-item-salary-info"})
+        desc_el    = card.find("div", {"data-testid": "job-item-description"})
+
+        title   = title_el.get_text(strip=True)   if title_el   else ""
+        company = company_el.get_text(strip=True) if company_el else ""
+        loc     = loc_el.get_text(strip=True)     if loc_el     else "London"
+        salary  = salary_el.get_text(strip=True)  if salary_el  else ""
+        desc    = desc_el.get_text(strip=True)    if desc_el    else ""
+        href    = title_el.get("href", "")        if title_el   else ""
+        job_url = href if href.startswith("http") else f"https://www.totaljobs.com{href}"
+
+        verdict = sponsorship_verdict(f"{title} {desc}", company, "uk", uk_register, us_h1b)
+        if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
+            continue
+
+        jobs.append({
+            "title":       title,
+            "company":     company,
+            "location":    loc,
+            "market":      "uk",
+            "sponsorship": str(verdict),
+            "salary":      salary,
+            "url":         job_url,
+            "description": desc[:500],
+            "source":      "totaljobs",
+            "found_at":    now_iso(),
+        })
+
+    log.info(f"Totaljobs '{query}' → {len(jobs)} verified sponsored jobs")
+    return jobs
+
+
+# ── Source: CWJobs (Computer Weekly — IT focused UK) ─────────────────────────
+
+def scrape_cwjobs(query: str, uk_register: set, us_h1b: set) -> list:
+    """CWJobs is owned by Totaljobs Group — same structure, IT-focused audience."""
+    jobs = []
+    url = (
+        f"https://www.cwjobs.co.uk/jobs/{requests.utils.quote(query.lower().replace(' ', '-'))}"
+        f"/in-london?radius=15&postedWithin=14"
+    )
+    try:
+        r = requests.get(url, headers=_HEADERS_NO_BR, timeout=20)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+    except Exception as e:
+        log.error(f"CWJobs '{query}': {e}")
+        return []
+
+    for card in soup.find_all("article", {"data-testid": "job-item"}):
+        title_el   = card.find("a", {"data-testid": "job-item-title"})
+        company_el = card.find("span", {"data-testid": "job-item-hiring-company-name"})
+        loc_el     = card.find("span", {"data-testid": "job-item-location"})
+        salary_el  = card.find("span", {"data-testid": "job-item-salary-info"})
+        desc_el    = card.find("div", {"data-testid": "job-item-description"})
+
+        title   = title_el.get_text(strip=True)   if title_el   else ""
+        company = company_el.get_text(strip=True) if company_el else ""
+        loc     = loc_el.get_text(strip=True)     if loc_el     else "London"
+        salary  = salary_el.get_text(strip=True)  if salary_el  else ""
+        desc    = desc_el.get_text(strip=True)    if desc_el    else ""
+        href    = title_el.get("href", "")        if title_el   else ""
+        job_url = href if href.startswith("http") else f"https://www.cwjobs.co.uk{href}"
+
+        verdict = sponsorship_verdict(f"{title} {desc}", company, "uk", uk_register, us_h1b)
+        if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
+            continue
+
+        jobs.append({
+            "title":       title,
+            "company":     company,
+            "location":    loc,
+            "market":      "uk",
+            "sponsorship": str(verdict),
+            "salary":      salary,
+            "url":         job_url,
+            "description": desc[:500],
+            "source":      "cwjobs",
+            "found_at":    now_iso(),
+        })
+
+    log.info(f"CWJobs '{query}' → {len(jobs)} verified sponsored jobs")
     return jobs
 
 
@@ -679,7 +827,7 @@ def scrape_greenhouse(query: str, market: str,
             verdict = sponsorship_verdict(
                 f"{title} {desc}", company, market, uk_register, us_h1b
             )
-            if not _is_sponsored(verdict):
+            if not _is_sponsored(verdict) or not is_valid_job(title, company, job_url):
                 continue
 
             jobs.append({
@@ -770,6 +918,8 @@ def run_scrape():
         # UK / London
         raw += scrape_adzuna(query, "gb", "London", uk_register, us_h1b)
         raw += scrape_reed(query, "London", uk_register, us_h1b)
+        raw += scrape_totaljobs(query, uk_register, us_h1b)
+        raw += scrape_cwjobs(query, uk_register, us_h1b)
         raw += scrape_greenhouse(query, "uk", uk_register, us_h1b)
         raw += scrape_linkedin(query, "London, United Kingdom", "uk", uk_register, us_h1b)
 
