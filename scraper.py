@@ -52,6 +52,55 @@ JUNIOR_EXCLUDE_KEYWORDS = [
     "assistant engineer", "associate engineer",
 ]
 
+# Consulting / managed-service / staffing companies to exclude
+# These are not product/SaaS companies — they hire on behalf of clients
+CONSULTING_EXCLUDE_COMPANIES = {
+    # Big 4 / management consulting
+    "ey", "ernst & young", "ernst and young",
+    "deloitte", "deloitte consulting",
+    "pwc", "pricewaterhousecoopers",
+    "kpmg",
+    "mckinsey", "mckinsey & company",
+    "bcg", "boston consulting group",
+    "bain", "bain & company",
+    "accenture", "accenture federal",
+    "capgemini", "capgemini engineering",
+    "ibm consulting", "ibm global services",
+    "infosys", "infosys bpm",
+    "wipro", "wipro technologies",
+    "tata consultancy", "tcs", "tata consulting",
+    "hcl technologies", "hcltech",
+    "cognizant", "cognizant technology",
+    "dxc technology",
+    "leidos",
+    "booz allen", "booz allen hamilton",
+    "saic", "science applications",
+    "cgi group", "cgi inc",
+    # Staffing / recruitment agencies
+    "randstad", "manpower", "manpowergroup",
+    "adecco", "kelly services", "kelly it",
+    "robert half", "robert half technology",
+    "modis", "insight global", "apex systems",
+    "tek systems", "teksystems",
+    "softchoice", "igate", "mastech",
+    "hays", "hays technology",
+    "michael page", "page group",
+    # MSPs / system integrators
+    "msc industrial", "msc direct",
+    "ntt data", "ntt limited",
+    "unisys",
+    "atos", "atos syntel",
+    "fujitsu",
+    "virtusa",
+    "hexaware",
+    "mphasis",
+    "publicis sapient", "sapient consulting",
+    "slalom",
+    "thoughtworks",
+    "mci",
+    "stefanini",
+}
+
 # Job aggregator/spam domains to exclude — keep only direct company sites + LinkedIn
 SPAM_JOB_DOMAINS = {
     "jobrapido", "jobisjob", "jobisjobus", "trovit", "mitula", "neuvoo",
@@ -393,12 +442,19 @@ def _is_sponsored(verdict) -> bool:
     return verdict in (True, "register-only", "text-only")
 
 
+def is_consulting_company(company: str) -> bool:
+    """Returns True if the company looks like a consulting/MSP/staffing firm."""
+    c = company.strip().lower()
+    return any(excl in c for excl in CONSULTING_EXCLUDE_COMPANIES)
+
+
 def is_valid_job(title: str, company: str, url: str = "") -> bool:
     """
     Returns False if:
     - title is empty or looks like a company name placeholder
     - title contains junior/intern/entry-level keywords
-    - URL points to a spam aggregator (not company site or LinkedIn)
+    - URL points to a spam aggregator
+    - company is a consulting/MSP/staffing firm (not a product/SaaS company)
     """
     if not title or len(title.strip()) < 4:
         return False
@@ -411,6 +467,8 @@ def is_valid_job(title: str, company: str, url: str = "") -> bool:
         url_lower = url.lower()
         if any(spam in url_lower for spam in SPAM_JOB_DOMAINS):
             return False
+    if company and is_consulting_company(company):
+        return False
     return True
 
 
