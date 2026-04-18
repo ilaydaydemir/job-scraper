@@ -100,8 +100,15 @@ ROLE_EXCLUDE_KEYWORDS = [
     " consulting", "consultant",
     # Frontend
     "frontend engineer", "front-end engineer",
-    # Pure ML (no GTM context) — standalone exact-ish matches
-    "ml engineer", "machine learning engineer",
+    # Pure ML research (no GTM/AI agent context) — exact standalone titles
+    # Note: "AI/ML Engineer", "Senior AI/ML Engineer" also excluded via these
+    "ml engineer", "machine learning engineer", "deep learning engineer",
+    # Finance / banking sector
+    "rates vp", "investment banking", "public sector",
+    # Language-specific requirements
+    "fluent in thai", "mandarin",
+    # Remote UK
+    "uk remote", "remote uk",
 ]
 
 # Finance / investment bank companies — sponsor internally, not externally
