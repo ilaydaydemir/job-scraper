@@ -1,0 +1,50 @@
+name: Job Scraper
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # her 6 saatte bir (00:00, 06:00, 12:00, 18:00 UTC)
+  workflow_dispatch:          # manuel tetikleme butonu (GitHub UI'dan)
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore seen_ids cache
+        uses: actions/cache@v4
+        with:
+          path: seen_ids.json
+          key: seen-ids-${{ github.run_id }}
+          restore-keys: seen-ids-
+
+      - name: Run scraper
+        env:
+          ADZUNA_APP_ID:      ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY:     ${{ secrets.ADZUNA_APP_KEY }}
+          REED_API_KEY:       ${{ secrets.REED_API_KEY }}
+          BACKEND_URL:        ${{ secrets.BACKEND_URL }}
+          NOTIFY_EMAIL_FROM:  ${{ secrets.NOTIFY_EMAIL_FROM }}
+          NOTIFY_EMAIL_TO:    ${{ secrets.NOTIFY_EMAIL_TO }}
+          NOTIFY_EMAIL_PASS:  ${{ secrets.NOTIFY_EMAIL_PASS }}
+        run: python scraper.py --once
+
+      - name: Upload jobs artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jobs-${{ github.run_number }}
+          path: |
+            jobs.csv
+            jobs.json
+          retention-days: 7
