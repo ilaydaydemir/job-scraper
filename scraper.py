@@ -62,31 +62,58 @@ JUNIOR_EXCLUDE_KEYWORDS = [
     "assistant engineer", "associate engineer",
 ]
 
-# Role relevance filter — exclude titles that are clearly off-target
+# Role relevance filter — exclude titles that don't match target profile
 ROLE_EXCLUDE_KEYWORDS = [
-    # Data / analytics (not engineering)
+    # Data / analytics
     "data analyst", "data analytics", "business analyst", "business intelligence",
     "bi analyst", "reporting analyst", "analytics manager",
     "data scientist", "machine learning scientist", "research scientist",
-    "data steward", "data governance",
+    "data steward", "data governance", "data engineering manager",
     # Pure infra / cloud ops
-    "devops", "devsecops", "site reliability", "sre ", "platform engineer",
+    "devops", "devsecops", "site reliability", "sre ",
     "cloud engineer", "infrastructure engineer", "network engineer",
     "database administrator", "dba ", "database engineer",
     # Security
-    "security engineer", "cybersecurity", "penetration tester", "appsec",
-    # Hardware / embedded
+    "security engineer", "cybersecurity", "penetration tester",
+    # Hardware / embedded / mobile
     "hardware engineer", "embedded engineer", "firmware engineer",
-    "electrical engineer", "mechanical engineer",
-    # Mobile
     "ios engineer", "android engineer", "mobile engineer",
-    # Completely unrelated
+    # QA / testing
     "qa engineer", "quality assurance", "test engineer", "automation tester",
-    "technical writer", "technical writer",
-    "recruiter", "talent acquisition",
+    # Non-engineering roles
+    "technical writer", "recruiter", "talent acquisition",
     "customer success", "account executive", "account manager",
     "financial analyst", "finance manager",
+    "product manager", "product management", "product design",
+    "marketing manager", "marketing lead", "sales manager", "sales specialist",
+    "business development manager",
+    # Junior / trainee
+    "junior ai engineer", "trainee ai engineer", "graduate ai engineer",
+    "visiting ai engineer", "job guarantee",
+    # Finance / banking sector (sponsor internally only)
+    "rates vp", "investment banking", "financial llm", "public sector",
+    # Remote UK
+    "uk remote", "remote uk",
+    # Language-specific
+    "fluent in thai", "mandarin",
+    # Consulting in title
+    " consulting", "consultant",
+    # Frontend
+    "frontend engineer", "front-end engineer",
+    # Pure ML (no GTM context) — standalone exact-ish matches
+    "ml engineer", "machine learning engineer",
 ]
+
+# Finance / investment bank companies — sponsor internally, not externally
+FINANCE_EXCLUDE_COMPANIES = {
+    "citi", "citigroup", "citibank",
+    "jpmorgan", "jp morgan", "morgan stanley",
+    "goldman sachs", "barclays", "hsbc", "ubs",
+    "deutsche bank", "credit suisse", "bnp paribas",
+    "macquarie", "nomura", "societe generale",
+    "london stock exchange group", "lseg",
+    "tradinghub",
+}
 
 # Consulting / managed-service / staffing / over-enterprise companies to exclude.
 # These either hire on behalf of clients (consulting/staffing) or sponsor internally
@@ -563,9 +590,12 @@ def _is_sponsored(verdict) -> bool:
 
 
 def is_consulting_company(company: str) -> bool:
-    """Returns True if the company looks like a consulting/MSP/staffing firm."""
+    """Returns True if the company is a consulting/MSP/staffing/finance firm."""
     c = company.strip().lower()
-    return any(excl in c for excl in CONSULTING_EXCLUDE_COMPANIES)
+    return (
+        any(excl in c for excl in CONSULTING_EXCLUDE_COMPANIES)
+        or any(excl in c for excl in FINANCE_EXCLUDE_COMPANIES)
+    )
 
 
 def is_valid_job(title: str, company: str, url: str = "") -> bool:
