@@ -52,44 +52,43 @@ JUNIOR_EXCLUDE_KEYWORDS = [
     "assistant engineer", "associate engineer",
 ]
 
-# Consulting / managed-service / staffing companies to exclude
-# These are not product/SaaS companies — they hire on behalf of clients
+# Consulting / managed-service / staffing / over-enterprise companies to exclude.
+# These either hire on behalf of clients (consulting/staffing) or sponsor internally
+# only (mega-enterprise IT), not real external visa-sponsored product roles.
 CONSULTING_EXCLUDE_COMPANIES = {
-    # Big 4 / management consulting
+    # ── Big 4 / Strategy consulting ─────────────────────────────────────────
     "ey", "ernst & young", "ernst and young",
-    "deloitte", "deloitte consulting",
-    "pwc", "pricewaterhousecoopers",
+    "deloitte", "deloitte consulting", "deloitte digital",
+    "pwc", "pricewaterhousecoopers", "price waterhouse",
     "kpmg",
     "mckinsey", "mckinsey & company",
     "bcg", "boston consulting group",
     "bain", "bain & company",
-    "accenture", "accenture federal",
-    "capgemini", "capgemini engineering",
-    "ibm consulting", "ibm global services",
-    "infosys", "infosys bpm",
-    "wipro", "wipro technologies",
+    "oliver wyman", "oliver wyman digital",
+    "a.t. kearney", "kearney",
+    "roland berger",
+    "strategy&",
+    "l.e.k. consulting", "lek consulting",
+    "pa consulting",
+    "north highland",
+    "guidehouse",
+    "west monroe",
+    "protiviti",
+    "navigant",
+    "gartner", "gartner consulting",
+    # ── IT consulting / system integrators ──────────────────────────────────
+    "accenture", "accenture federal", "accenture song",
+    "capgemini", "capgemini engineering", "capgemini invent",
+    "ibm consulting", "ibm global services", "ibm services",
+    "infosys", "infosys bpm", "infosys consulting",
+    "wipro", "wipro technologies", "wipro digital",
     "tata consultancy", "tcs", "tata consulting",
-    "hcl technologies", "hcltech",
-    "cognizant", "cognizant technology",
+    "hcl technologies", "hcltech", "hcl america",
+    "cognizant", "cognizant technology", "cognizant digital",
     "dxc technology",
-    "leidos",
-    "booz allen", "booz allen hamilton",
-    "saic", "science applications",
-    "cgi group", "cgi inc",
-    # Staffing / recruitment agencies
-    "randstad", "manpower", "manpowergroup",
-    "adecco", "kelly services", "kelly it",
-    "robert half", "robert half technology",
-    "modis", "insight global", "apex systems",
-    "tek systems", "teksystems",
-    "softchoice", "igate", "mastech",
-    "hays", "hays technology",
-    "michael page", "page group",
-    # MSPs / system integrators
-    "msc industrial", "msc direct",
-    "ntt data", "ntt limited",
+    "ntt data", "ntt limited", "ntt group",
     "unisys",
-    "atos", "atos syntel",
+    "atos", "atos syntel", "eviden",
     "fujitsu",
     "virtusa",
     "hexaware",
@@ -97,8 +96,58 @@ CONSULTING_EXCLUDE_COMPANIES = {
     "publicis sapient", "sapient consulting",
     "slalom",
     "thoughtworks",
-    "mci",
     "stefanini",
+    "mci", "mci group",
+    "luxoft",
+    "epam systems", "epam",
+    "globant",
+    "softserve",
+    "ciber",
+    "igate",
+    "mastech", "mastech digital",
+    "birlasoft",
+    "niit technologies",
+    "zensar",
+    # ── Government / defence contractors ────────────────────────────────────
+    "leidos",
+    "booz allen", "booz allen hamilton",
+    "saic", "science applications",
+    "cgi group", "cgi inc", "cgi federal",
+    "peraton",
+    "caci", "caci international",
+    "general dynamics information technology", "gdit",
+    "northrop grumman", "raytheon", "lockheed martin", "bae systems",
+    # ── Staffing / recruitment agencies ─────────────────────────────────────
+    "randstad", "randstad technologies",
+    "manpower", "manpowergroup", "experis",
+    "adecco", "adecco group",
+    "kelly services", "kelly it",
+    "robert half", "robert half technology",
+    "modis", "insight global", "apex systems",
+    "tek systems", "teksystems",
+    "softchoice",
+    "hays", "hays technology", "hays specialist",
+    "michael page", "page group", "page executive",
+    "harvey nash",
+    "spring professional",
+    "investigo",
+    "ambition",
+    "computacenter",
+    # ── Mega-enterprise IT vendors (sponsor internally, not externally) ──────
+    # These post jobs but route visa sponsorship through internal mobility only
+    "ibm", "ibm corporation",           # full IBM (not just consulting arm)
+    "hp", "hewlett packard", "hewlett-packard", "hpe", "hewlett packard enterprise",
+    "dell technologies", "dell",
+    "oracle", "oracle corporation",
+    "sap", "sap se", "sap america",
+    "cisco", "cisco systems",
+    "intel", "intel corporation",
+    "siemens", "siemens ag", "siemens digital",
+    "ericsson",
+    "nokia",
+    "nec", "nec corporation",
+    "xerox",
+    "unisys",
 }
 
 # Job aggregator/spam domains to exclude — keep only direct company sites + LinkedIn
@@ -604,6 +653,7 @@ def scrape_reed(query: str, location: str, uk_register: set, us_h1b: set) -> lis
         "https://www.reed.co.uk/api/1.0/search"
         f"?keywords={requests.utils.quote(query)}"
         f"&location={requests.utils.quote(location)}"
+        f"&distancefrom=10"
         f"&resultsToTake=100"
     )
 
@@ -877,7 +927,7 @@ def scrape_greenhouse(query: str, market: str,
             ):
                 continue
             if market == "uk" and not any(
-                kw in loc_lower for kw in ["london", "uk", "united kingdom", "remote"]
+                kw in loc_lower for kw in ["london", "remote", "anywhere"]
             ):
                 continue
 
